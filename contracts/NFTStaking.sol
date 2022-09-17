@@ -12,7 +12,7 @@ interface IRewardToken is IERC20 {
     function mint(address to, uint256 amount) external;
 }
 
-contract StakingSystem is Ownable, ERC721Holder {
+contract NFTStaking is Ownable, ERC721Holder {
     IRewardToken public rewardsToken;
     IERC721 public nft;
 
@@ -20,7 +20,7 @@ contract StakingSystem is Ownable, ERC721Holder {
     uint256 public stakingStartTime;
     uint256 constant stakingTime = 180 seconds;
     uint256 constant token = 10e18;
-    
+
     struct Staker {
         uint256[] tokenIds;
         mapping(uint256 => uint256) tokenStakingCoolDown;
@@ -140,7 +140,7 @@ contract StakingSystem is Ownable, ERC721Holder {
 
         uint256 lastIndex = staker.tokenIds.length - 1;
         uint256 lastIndexKey = staker.tokenIds[lastIndex];
-        
+
         if (staker.tokenIds.length > 0) {
             staker.tokenIds.pop();
         }
@@ -154,7 +154,6 @@ contract StakingSystem is Ownable, ERC721Holder {
     }
 
     function updateReward(address _user) public {
-        
         Staker storage staker = stakers[_user];
         uint256[] storage ids = staker.tokenIds;
         for (uint256 i = 0; i < ids.length; i++) {
@@ -163,13 +162,20 @@ contract StakingSystem is Ownable, ERC721Holder {
                 block.timestamp + stakingTime &&
                 staker.tokenStakingCoolDown[ids[i]] > 0
             ) {
-            
-                uint256 stakedDays = ((block.timestamp - uint(staker.tokenStakingCoolDown[ids[i]]))) / stakingTime;
-                uint256 partialTime = ((block.timestamp - uint(staker.tokenStakingCoolDown[ids[i]]))) % stakingTime;
-                
-                staker.balance +=  token * stakedDays;
+                uint256 stakedDays = (
+                    (block.timestamp -
+                        uint(staker.tokenStakingCoolDown[ids[i]]))
+                ) / stakingTime;
+                uint256 partialTime = (
+                    (block.timestamp -
+                        uint(staker.tokenStakingCoolDown[ids[i]]))
+                ) % stakingTime;
 
-                staker.tokenStakingCoolDown[ids[i]] = block.timestamp + partialTime;
+                staker.balance += token * stakedDays;
+
+                staker.tokenStakingCoolDown[ids[i]] =
+                    block.timestamp +
+                    partialTime;
 
                 console.logUint(staker.tokenStakingCoolDown[ids[i]]);
                 console.logUint(staker.balance);
@@ -179,12 +185,11 @@ contract StakingSystem is Ownable, ERC721Holder {
 
     function claimReward(address _user) public {
         require(tokensClaimable == true, "Tokens cannnot be claimed yet");
-        require(stakers[_user].balance > 0 , "0 rewards yet");
-
+        require(stakers[_user].balance > 0, "0 rewards yet");
 
         stakers[_user].rewardsReleased += stakers[_user].balance;
         stakers[_user].balance = 0;
-   
+
         rewardsToken.mint(_user, stakers[_user].balance);
 
         emit RewardPaid(_user, stakers[_user].balance);
